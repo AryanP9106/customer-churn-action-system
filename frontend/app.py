@@ -25,8 +25,8 @@ with tab1:
             
             with st.spinner("Neural Network is calculating risk tiers for your customer base..."):
                 try:
-                    # Connect to FastAPI Backend
-                    response = requests.post("http://127.0.0.1:8000/predict-csv", files=files)
+                    # Replace your local address with your brand new live Render URL!
+                    response = requests.post("https://customer-churn-action-system.onrender.com/predict-csv", files=files)
                     
                     #  Correct property
                     if response.status_code == 200:
