@@ -64,8 +64,12 @@ with tab1:
                             results_df = pd.DataFrame(res_data["data"])
                             
                             st.subheader("🔮 Universal AI Inference Matrix Results")
-                            display_df = pd.merge(raw_df[[id_col]], results_df, left_on=id_col, right_on="Customer_ID").drop(columns=["Customer_ID"])
-                            st.dataframe(display_df, use_container_width=True)
+                            display_df = pd.merge(
+                            raw_df[[id_col, rec_col, freq_col, mon_col]],
+                            results_df,
+                            left_on=id_col,
+                            right_on="Customer_ID"
+                        ).drop(columns=["Customer_ID"])
                         else:
                             st.error(f"Backend Engine Error: {res_data.get('message', 'Unknown Error')}")
                     else:
