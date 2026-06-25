@@ -62,14 +62,22 @@ with tab1:
                         res_data = response.json()
                         if res_data.get("status") == "success":
                             results_df = pd.DataFrame(res_data["data"])
-                            
+
                             st.subheader("🔮 Universal AI Inference Matrix Results")
-                            display_df = pd.merge(
-                            raw_df[[id_col, rec_col, freq_col, mon_col]],
-                            results_df,
-                            left_on=id_col,
-                            right_on="Customer_ID"
-                        ).drop(columns=["Customer_ID"])
+                            display_df = pd.DataFrame({
+                                "Customer ID": raw_df[id_col],
+                                "Recency Feature": raw_df[rec_col],
+                                "Frequency Feature": raw_df[freq_col],
+                                "Monetary Feature": raw_df[mon_col]
+                            })
+
+                            display_df = display_df.merge(
+                                results_df,
+                                left_on="Customer ID",
+                                right_on="Customer_ID"
+                            ).drop(columns=["Customer_ID"])
+
+                            st.dataframe(display_df, use_container_width=True)
                         else:
                             st.error(f"Backend Engine Error: {res_data.get('message', 'Unknown Error')}")
                     else:
