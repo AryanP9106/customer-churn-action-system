@@ -41,23 +41,26 @@ with tab1:
             mon_col = st.selectbox("Monetary Column (e.g., Monthly Charge, Total Revenue)", available_columns, index=default_mon_idx)
 
         if st.button("Run Batch AI Inference"):
-            # Reset file pointer to read whole file
             uploaded_file.seek(0)
             raw_df = pd.read_csv(uploaded_file)
             
-            # Map and standardize the columns on-the-fly to prevent backend crashes
+            # 1. Structure the foundational 5 metrics the model groups/calculates on
             standardized_df = pd.DataFrame()
-            standardized_df['Customer_ID'] = raw_df[id_col]
-            standardized_df['Orders'] = raw_df[rec_col]
-            standardized_df['Quantity'] = raw_df[freq_col]
-            standardized_df['Revenue'] = raw_df[mon_col]
-            standardized_df['Profit'] = raw_df[mon_col] * 0.2  # Simulate profit metric if missing
+            standardized_df['Customer_ID'] = raw_df[id_col].astype(str)
+            standardized_df['Orders'] = pd.to_numeric(raw_df[rec_col], errors='coerce').fillna(0)
+            standardized_df['Quantity'] = pd.to_numeric(raw_df[freq_col], errors='coerce').fillna(0)
+            standardized_df['Revenue'] = pd.to_numeric(raw_df[mon_col], errors='coerce').fillna(0)
+            standardized_df['Profit'] = standardized_df['Revenue'] * 0.21  # Standard baseline logic
             
-            # Add static placeholder dummy padding for remaining 11 dimensions expected by the scaler
-            for i in range(11):
-                standardized_df[f'Dummy_Feature_{i}'] = 0.0
+            # 2. Add the exact categorical placeholders your encoder looks for
+            standardized_df['Region'] = 'Central'
+            standardized_df['Payment_Method'] = 'Credit Card'
             
-            # Convert back to clean CSV string byte stream to send over network
+            # 3. Add numeric padding for the remaining features to hit exactly 16 inputs
+            for i in range(9):
+                standardized_df[f'Feature_Pad_{i}'] = 0.0
+                
+            # Convert back to clean CSV byte stream to send to backend
             csv_buffer = standardized_df.to_csv(index=False).encode('utf-8')
             files = {"file": (uploaded_file.name, csv_buffer, "text/csv")}
             
