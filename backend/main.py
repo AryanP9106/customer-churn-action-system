@@ -8,7 +8,6 @@ import io
 
 # Initialize FastAPI
 app = FastAPI(title="Universal AI Churn Prediction API")
-
 # Enable CORS for Streamlit Cloud
 app.add_middleware(
     CORSMiddleware,
