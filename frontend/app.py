@@ -55,7 +55,7 @@ with tab1:
             with st.spinner("Processing deep learning calculations..."):
                 try:
                     # NOTE: Ensure this matches your live render URL
-                    api_url = "https://customer-churn-action-system.onrender.com"
+                    api_url = "https://customer-churn-action-system.onrender.com/predict-csv"
                     response = requests.post(api_url, files=files)
                     
                     if response.status_code == 200:
