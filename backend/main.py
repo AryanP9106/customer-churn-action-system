@@ -34,14 +34,14 @@ class ChurnMLP(nn.Module):
     def forward(self, x):
         return self.network(x)
 
-# 2. Load the Weights and Scaler
+# 2. Load the Weights and Scaler safely
 try:
     model = ChurnMLP(input_dim=16)
     model.load_state_dict(torch.load("models/neural_network_weights.pth", map_location=torch.device('cpu')))
     model.eval()
     scaler = joblib.load("models/data_scaler.pkl")
 except Exception as e:
-    print(f"Warning: Could not load models. Make sure they exist in the models/ folder. Error: {e}")
+    print(f"Warning: Could not load models: {e}")
 
 @app.get("/")
 def home():
@@ -56,40 +56,26 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
         if df.empty:
             return {"status": "error", "message": "The uploaded CSV file is empty."}
             
+        # Standardize fallback for Customer ID tracking
         if 'Customer_ID' not in df.columns:
             df['Customer_ID'] = df.index.astype(str)
 
-        # FOOLPROOF AGGREGATION: Dynamic fallback dictionary
-        agg_dict = {}
-        for col in ['Orders', 'Quantity', 'Revenue', 'Profit', 'Discount_Rate']:
+        # UNIVERSAL INTERCEPT: If frontend already mapped features, use them directly
+        # Otherwise, gracefully default to fallback baseline zeroes to avoid KeyError crashes
+        final_features = pd.DataFrame(index=df.index)
+        core_mapped_cols = ['Orders', 'Quantity', 'Revenue', 'Profit', 'Discount_Rate']
+        
+        for idx, col in enumerate(core_mapped_cols):
             if col in df.columns:
-                agg_dict[col] = 'mean' if 'Rate' in col else 'sum'
-            else:
-                df[col] = 0.0
-                agg_dict[col] = 'sum'
-                
-        if 'Order_ID' in df.columns:
-            agg_dict['Order_ID'] = 'count'
-        elif 'Orders' in df.columns:
-            agg_dict['Orders'] = 'count'
-
-        # Safely aggregate customer profiles
-        cust_df = df.groupby('Customer_ID').agg(agg_dict).reset_index()
-        
-        # Ensure matrix is exactly 16 dimensions
-        final_features = pd.DataFrame(index=cust_df.index)
-        feature_cols = ['Orders', 'Quantity', 'Revenue', 'Profit', 'Discount_Rate']
-        
-        for idx, col in enumerate(feature_cols):
-            if col in cust_df.columns:
-                final_features[f'f_{idx}'] = cust_df[col]
+                final_features[f'f_{idx}'] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
             else:
                 final_features[f'f_{idx}'] = 0.0
                 
-        for i in range(len(feature_cols), 16):
+        # Fill out remaining structural feature dimensions up to 16 for PyTorch tensor compatibility
+        for i in range(len(core_mapped_cols), 16):
             final_features[f'f_{i}'] = 0.0
             
-        # Neural Network Inference
+        # Neural Network Scaling & Array Processing
         X_scaled = scaler.transform(final_features.values)
         X_tensor = torch.FloatTensor(X_scaled)
         
@@ -99,9 +85,9 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
         if isinstance(probabilities, float):
             probabilities = [probabilities]
             
-        # Business Strategy Mapping
+        # Map output matrix probabilities to actionable operational strategies
         results = []
-        for i, cust_id in enumerate(cust_df['Customer_ID']):
+        for i, cust_id in enumerate(df['Customer_ID']):
             prob = probabilities[i]
             
             if prob <= 0.40:
