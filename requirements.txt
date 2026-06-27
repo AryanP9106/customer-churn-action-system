@@ -1,3 +1,7 @@
+streamlit
+requests
+scipy
+pandas
 fastapi
 uvicorn
 xgboost
