@@ -432,7 +432,6 @@ with tab3:
                     "Revenue_at_Risk",
                     ascending=False
                 )
-                .head(10)
             )
 
             st.dataframe(
