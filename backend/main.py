@@ -229,7 +229,34 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
     try:
         contents = await file.read()
 
-        df = pd.read_csv(io.BytesIO(contents))
+        filename = file.filename.lower()
+
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+
+        elif filename.endswith(".xlsx"):
+            df = pd.read_excel(io.BytesIO(contents))
+
+        elif filename.endswith(".tsv"):
+            df = pd.read_csv(
+                io.BytesIO(contents),
+                sep="\t"
+            )
+
+        else:
+            return {
+                "status": "error",
+                "message": "Unsupported file format."
+            }
+
+        df.columns = (
+            df.columns
+            .str.strip()
+            .str.replace(" ", "_")
+        )
+
+        df = df.drop_duplicates()
+        df = df.fillna(0)
 
         if df.empty:
             return {
@@ -255,22 +282,46 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
 
             prob = float(probabilities[i])
 
+            revenue = 0.0
+
+            if "Revenue" in df.columns:
+                revenue = pd.to_numeric(
+                    df.iloc[i]["Revenue"],
+                    errors="coerce"
+                )
+
+                if pd.isna(revenue):
+                    revenue = 0.0
+
+                revenue = float(revenue)
+
+            revenue_at_risk = round(
+                revenue * prob,
+                2
+            )
+
             if prob <= 0.40:
                 tier = "Low"
                 action = "No immediate intervention required."
 
             elif prob <= 0.70:
                 tier = "Medium"
-                action = "Trigger a personalized product walkthrough email."
+                action = (
+                    "Trigger a personalized product walkthrough email."
+                )
 
             else:
                 tier = "High"
-                action = "Offer an immediate 20% loyalty retention discount."
+                action = (
+                    "Offer an immediate 20% loyalty retention discount."
+                )
 
             results.append(
                 {
                     "Customer_ID": str(cust_id),
                     "Churn_Probability": f"{round(prob * 100, 2)}%",
+                    "Revenue": revenue,
+                    "Revenue_at_Risk": revenue_at_risk,
                     "Risk_Tier": tier,
                     "Suggested_Action": action
                 }
@@ -280,6 +331,8 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
             "status": "success",
             "data": results
         }
+    
+        print(results.keys())
 
     except Exception as e:
         return {
