@@ -327,6 +327,17 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
                 }
             )
 
+            print("\n========== API DEBUG ==========")
+
+            if len(results) > 0:
+                print("First prediction:")
+                print(results[0])
+
+            print("Response Keys:")
+            print(results[0].keys())
+
+            print("===============================\n")
+
         return {
             "status": "success",
             "data": results

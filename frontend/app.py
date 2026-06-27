@@ -370,9 +370,6 @@ with tab3:
 
         results_df = st.session_state["results_df"]
 
-        # Debug information
-        st.write("Available columns:")
-        st.write(results_df.columns.tolist())
 
         if "Revenue_at_Risk" not in results_df.columns:
             st.error(
