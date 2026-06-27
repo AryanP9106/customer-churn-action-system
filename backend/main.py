@@ -18,6 +18,120 @@ app.add_middleware(
 )
 
 
+COLUMN_ALIASES = {
+    "Customer_ID": [
+        "Customer_ID",
+        "Customer ID",
+        "CustomerID",
+        "Customer Id",
+        "customer_id",
+        "id",
+    ],
+    "Orders": [
+        "Orders",
+        "Order Count",
+        "Order_Count",
+        "Tenure in Months",
+        "Tenure",
+        "Recency",
+        "Engagement",
+    ],
+    "Quantity": [
+        "Quantity",
+        "Qty",
+        "Number of Referrals",
+        "Referrals",
+        "Frequency",
+        "Purchase Frequency",
+    ],
+    "Revenue": [
+        "Revenue",
+        "Total Revenue",
+        "Monthly Charge",
+        "Monthly Charges",
+        "Total Charges",
+        "Sales",
+        "Amount",
+    ],
+    "Profit": [
+        "Profit",
+        "Gross Profit",
+        "Margin",
+    ],
+    "Discount_Rate": [
+        "Discount_Rate",
+        "Discount Rate",
+        "Discount",
+    ],
+}
+
+
+def normalize_column_name(column_name):
+    return "".join(char.lower() for char in str(column_name) if char.isalnum())
+
+
+def find_column(df, aliases):
+    normalized_columns = {
+        normalize_column_name(column): column
+        for column in df.columns
+    }
+
+    for alias in aliases:
+        match = normalized_columns.get(normalize_column_name(alias))
+        if match is not None:
+            return match
+
+    return None
+
+
+def build_model_features(df):
+    source_columns = {
+        target_column: find_column(df, aliases)
+        for target_column, aliases in COLUMN_ALIASES.items()
+    }
+
+    if "Customer_ID" not in df.columns:
+        id_col = source_columns["Customer_ID"]
+        df["Customer_ID"] = (
+            df[id_col].astype(str)
+            if id_col is not None
+            else df.index.astype(str)
+        )
+
+    final_features = pd.DataFrame(index=df.index)
+
+    core_mapped_cols = [
+        "Orders",
+        "Quantity",
+        "Revenue",
+        "Profit",
+        "Discount_Rate"
+    ]
+
+    for idx, col in enumerate(core_mapped_cols):
+        source_col = source_columns[col]
+
+        if source_col is not None:
+            final_features[f"f_{idx}"] = pd.to_numeric(
+                df[source_col],
+                errors="coerce"
+            ).fillna(0.0)
+
+        elif col == "Profit":
+            final_features[f"f_{idx}"] = final_features["f_2"] * 0.20
+
+        elif col == "Discount_Rate":
+            final_features[f"f_{idx}"] = 0.05
+
+        else:
+            final_features[f"f_{idx}"] = 0.0
+
+    for i in range(len(core_mapped_cols), 16):
+        final_features[f"f_{i}"] = 0.0
+
+    return final_features
+
+
 # ==========================
 # MODEL ARCHITECTURE
 # ==========================
@@ -123,32 +237,7 @@ async def predict_churn_from_csv(file: UploadFile = File(...)):
                 "message": "Uploaded CSV is empty."
             }
 
-        if "Customer_ID" not in df.columns:
-            df["Customer_ID"] = df.index.astype(str)
-
-        final_features = pd.DataFrame(index=df.index)
-
-        core_mapped_cols = [
-            "Orders",
-            "Quantity",
-            "Revenue",
-            "Profit",
-            "Discount_Rate"
-        ]
-
-        for idx, col in enumerate(core_mapped_cols):
-
-            if col in df.columns:
-                final_features[f"f_{idx}"] = pd.to_numeric(
-                    df[col],
-                    errors="coerce"
-                ).fillna(0.0)
-
-            else:
-                final_features[f"f_{idx}"] = 0.0
-
-        for i in range(len(core_mapped_cols), 16):
-            final_features[f"f_{i}"] = 0.0
+        final_features = build_model_features(df)
 
         X_scaled = scaler.transform(final_features.values)
 
