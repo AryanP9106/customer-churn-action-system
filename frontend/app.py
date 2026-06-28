@@ -598,7 +598,7 @@ with tab3:
 
             if total_risk > 100000:
 
-                st.error(
+                st.info(
                     f"Estimated revenue exposure: ₹{total_risk:,.0f}"
                 )
 
