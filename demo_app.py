@@ -1,3 +1,5 @@
+#! OLD DEMO CODE COMPRISING OF ALL FIRST 3 MODULES AS TABS IN A SINGLE PAGE.
+
 import streamlit as st
 import pandas as pd
 import numpy as np
